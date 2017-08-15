@@ -92,23 +92,38 @@ int main() {
           double psi = j[1]["psi"];
           double v = j[1]["speed"];
 
-          for (int i = 0; i < ptsx.size(); i++)
+          double steer_value = j[1]["steering_angle"];
+          double throttle_value = j[1]["throttle"];
+
+          //taking actuator latency into account by making prediction after 100ms:
+          double latency = 0.1;
+          //define constant with length of from to center of gravitiy of the car.
+          const double Lf = 2.67;
+          //prediction of car variables in Global coordinates  after latency @100ms
+          //mph to m/s factor = 0.44704
+          double predicted_px = px + 0.44704 * v * cos(psi) * latency;
+          double predicted_py = py + 0.44704 * v * sin(psi) * latency;
+          double predicted_psi = psi - 0.44704 * v * steer_value / Lf * latency;
+          //use throttle value as proxy for acc.
+          double predicted_v = v + throttle_value * latency;
+
+          //transform global coordinates into car centered coordinate system
+          // x axis points to heading direction
+          Eigen::VectorXd waypoints_x(ptsx.size());
+          Eigen::VectorXd waypoints_y(ptsx.size());
+
+          for (size_t i = 0; i < ptsx.size(); i++)
           {
              //shift car reference angle to 90 degrees
-             double shift_x = ptsx[i] - px;
-             double shift_y = ptsy[i] - py;
+             double transf_x = ptsx[i] - predicted_px;
+             double transf_y = ptsy[i] - predicted_py;
 
-             ptsx[i] = (shift_x *cos(0-psi)-shift_y*sin(0-psi));
-             ptsy[i] = (shift_x *sin(0-psi)-shift_y*cos(0-psi));
+             waypoints_x[i] = transf_x*cos(-predicted_psi)-transf_y*sin(-predicted_psi);
+             waypoints_y[i] = transf_x *sin(-predicted_psi)+transf_y*cos(-predicted_psi);
           }
 
-          double* ptrx = &ptsx[0];
-          Eigen::Map<Eigen::VectorXd> ptsx_transform(ptrx, 6);
-
-          double* ptry = &ptsy[0];
-          Eigen::Map<Eigen::VectorXd> ptsy_transform(ptry, 6);
-
-          auto coeffs = polyfit(ptsx_transform, ptsy_transform, 3);
+          //fit points to polynomial curve of 3rd order
+          auto coeffs = polyfit(waypoints_x, waypoints_y, 3);
 
 
           //Determining Cross Track Error= determining polynomial f(x) at x and substract y.
@@ -117,29 +132,23 @@ int main() {
           //epsi = psi -atan(coeffs[1] + 2 * px * coeffs[2] + 3*coeffs[3] * pow(px,2));
           double epsi = -atan(coeffs[1]);
  
-          double steer_value = j[1]["steering_angle"];
-          double throttle_value = j[1]["throttle"];
-
+          //Define State vector in Car Coordinates and call Solve method of mpc Class
           Eigen::VectorXd state(6);
-          state << 0, 0, 0, v, cte, epsi;
+          state << 0, 0, 0, predicted_v, cte, epsi;
 
           auto vars = mpc.Solve(state, coeffs);
 
-
-          //steer_value = vars[6]/deg2rad(25);
-          //throttle_value = vars[7];
-
           json msgJson;
-          // NOTE: Remember to divide by deg2rad(25) before you send the steering value back.
-          // Otherwise the values will be in between [-deg2rad(25), deg2rad(25] instead of [-1, 1].
-          msgJson["steering_angle"] = vars[0]/deg2rad(25);
+          //send steering and throttle values solutions out of solver back to the simulator
+          //division by deg2rad(25) to keep values between [-1, 1]
+          msgJson["steering_angle"] = vars[0]/(deg2rad(25)*Lf);
           msgJson["throttle"] = vars[1];
 
           //Display the MPC predicted trajectory 
           vector<double> mpc_x_vals;
           vector<double> mpc_y_vals;
 
-          for (int i = 2; i < vars.size(); i++)
+          for (size_t i = 2; i < vars.size(); i++)
           {
              if(i%2 == 0)
              {
@@ -150,7 +159,7 @@ int main() {
                 mpc_y_vals.push_back(vars[i]);
              }
           }
-          //.. add (x,y) points to list here, points are in reference to the vehicle's coordinate system
+          //Adding (x,y) points to list here, points are in reference to the vehicle's coordinate system
           // the points in the simulator are connected by a Green line
 
           msgJson["mpc_x"] = mpc_x_vals;
@@ -160,15 +169,16 @@ int main() {
           vector<double> next_x_vals;
           vector<double> next_y_vals;
 
-          double poly_inc = 2.5;
-          int num_points = 25;
+          //Plotting 20 points by increments of 3
+          double inc = 3;
+          int num_pts = 20;
 
-          for (int i = 1; i < num_points; i++)
+          for (int i = 1; i < num_pts; i++)
           {
-             next_x_vals.push_back(poly_inc*i);
-             next_y_vals.push_back(polyeval(coeffs, poly_inc*i));
+             next_x_vals.push_back(inc*i);
+             next_y_vals.push_back(polyeval(coeffs, inc*i));
           }
-          //.. add (x,y) points to list here, points are in reference to the vehicle's coordinate system
+          //adding (x,y) points to list here, points are in reference to the vehicle's coordinate system
           // the points in the simulator are connected by a Yellow line
 
           msgJson["next_x"] = next_x_vals;
@@ -177,15 +187,10 @@ int main() {
 
           auto msg = "42[\"steer\"," + msgJson.dump() + "]";
           std::cout << msg << std::endl;
+
           // Latency
           // The purpose is to mimic real driving conditions where
           // the car does actuate the commands instantly.
-          //
-          // Feel free to play around with this value but should be to drive
-          // around the track with 100ms latency.
-          //
-          // NOTE: REMEMBER TO SET THIS TO 100 MILLISECONDS BEFORE
-          // SUBMITTING.
           this_thread::sleep_for(chrono::milliseconds(100));
           ws.send(msg.data(), msg.length(), uWS::OpCode::TEXT);
         }
