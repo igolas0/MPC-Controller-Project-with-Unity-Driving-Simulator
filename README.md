@@ -26,11 +26,13 @@ Analogous to the model proposed in the classroom we make use of the following gl
 
 X and Y being the car position in Cartesian Coordinates, Psi the orientation angle of the car and V the velocity of the car in MPH.
 
-Delta being the steering angle from [-1, 1] and a the throttle/brake value from [-1, 1] also.
+Delta being the steering angle from [-1, 1] and a the throttle/brake value from [-1, 1].
 
 We then use the following kinematic update equations:
 
 ![alt text][image2]
+
+Lf is the length from the front to the center of gravity of the car.
 
 # Cost function
 
