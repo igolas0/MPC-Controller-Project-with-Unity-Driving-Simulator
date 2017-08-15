@@ -14,9 +14,11 @@ A MPC Controller was implemented to control steering as well as throttle and bra
 
 The MPC controller was implemented in the file MPC.cpp. The main components of the implementation are a defined cost function to be optimized upon and global kinematic equations including the state variables and constraints. All of these information is then passed to the Ipopt solver which returns optimal steering and throttle values (negative throttle values meaning braking/deaccelarating). We also make use of the CppAD library to compute derivatives. The solver and equations take into account a "look ahead" which is defined by the number of timesteps N and elapsed time between timesteps dt.
 
-The main program main.cpp handles the communication via uWebSockets with the simulator and calls the MPC controller object to update throttle and steering values and send them back to the simulator. Since latency of actuators impose a big problem in real-life applications we apply an artificial delay of 100ms on the communication of the actuator values back to the simulator to try to emulate this phenomena. The way I handled the latency was to make a prediction at "t + 100ms" of the state variables coming from the simulator and then passing them to the MPC Solver.
+The main program main.cpp handles the communication via uWebSockets with the simulator and calls the MPC controller object to update throttle and steering values and send them back to the simulator. Since latency of actuators impose a big problem in real-life applications we apply an artificial delay of 100ms on the communication of the actuator values back to the simulator to try to emulate this phenomena. The way I handled the latency was to make a prediction at "t + 100ms" of the state variables coming from the simulator and then passing them to the MPC Solver (lines 98 to 108).
 
-Also at main.cpp we make a transformation from map global coordinates to car centered coordinates (before passing the state variables to the MPC Solver).
+Also at main.cpp we make a transformation from map global coordinates to car centered coordinates (before passing the state variables to the MPC Solver). This was done from line 110 to 123 in the code. 
+
+Here's the [link to my video result](./video/1lap.mp4) driving succesfully around the track.
 
 ## Global kinematic model
 
@@ -36,7 +38,7 @@ Lf is the length from the front to the center of gravity of the car.
 
 # Cost function
 
-The cost function is defined in MPC.cpp (from lines 48 to 67).  
+The cost function is defined in MPC.cpp (from lines 48 to 67).
 
 The parameters which impact the cost function the most are the CTE (Cross Track Error) and the orientation angle error (difference to desired orientation).
 Furthermore the difference to a reference speed of 120mph is added to the cost function, but a small weight of 0.2 is used so that following an ideal path during turns is prioritized to driving at high speeds which can be detrimental to the ability of the car to stay on the track.
