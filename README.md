@@ -12,30 +12,42 @@ Self-Driving Car Engineer Nanodegree Program
 
 A MPC Controller was implemented to control steering as well as throttle and braking in an Unity based driving simulator achieving velocities up to 100mph with good and smooth turning behaviour around the track.
 
-The MPC controller was implemented in the file MPC.cpp. The main components of the implementation are a defined cost function to be optimized upon and global kinematic equations including the state variables and constraints. All of these information is then passed to the Ipopt solver which returns optimal steering and throttle values (negative throttle values meaning braking/deaccelarating). We also make use of the CppAD library to compute derivatives. The solver and equations take into account a look ahead which is defined by the number of timesteps N and elapsed time between timesteps dt.
+The MPC controller was implemented in the file MPC.cpp. The main components of the implementation are a defined cost function to be optimized upon and global kinematic equations including the state variables and constraints. All of these information is then passed to the Ipopt solver which returns optimal steering and throttle values (negative throttle values meaning braking/deaccelarating). We also make use of the CppAD library to compute derivatives. The solver and equations take into account a "look ahead" which is defined by the number of timesteps N and elapsed time between timesteps dt.
 
-The main program main.cpp handles the communication via uWebSockets with the simulator and calls the MPC controller object to update throttle and steering values and send them back to the simulator. Since latency of actuators impose a big problem in real-life applications we apply an artifficial delay of 100ms in the communication process of actuation values back to the simulator to try to emulate this phenomena. The way I handled the latency was to make a prediction at "t + 100ms" of the values coming from the simulator before passing them to the MPC Solver.
+The main program main.cpp handles the communication via uWebSockets with the simulator and calls the MPC controller object to update throttle and steering values and send them back to the simulator. Since latency of actuators impose a big problem in real-life applications we apply an artificial delay of 100ms on the communication of the actuator values back to the simulator to try to emulate this phenomena. The way I handled the latency was to make a prediction at "t + 100ms" of the state variables coming from the simulator and then passing them to the MPC Solver.
 
-Also at main.cpp we make a transformation from map global coordinates to car centered coordinates, before passing the state variables to the MPC Solver.
+Also at main.cpp we make a transformation from map global coordinates to car centered coordinates (before passing the state variables to the MPC Solver).
 
 ## Global kinematic model
 
-Analog to the model proposed in the classroom we make use of the following global kinematic model with the following state variables and control inputs:
+Analogous to the model proposed in the classroom we make use of the following global kinematic model with the following state variables and control inputs:
 
 ![alt text][image1]
 
 X and Y being the car position in Cartesian Coordinates, Psi the orientation angle of the car and V the velocity of the car in MPH.
 
-Control Inputs: [Delta, a]
 Delta being the steering angle from [-1, 1] and a the throttle/brake value from [-1, 1] also.
 
-We use the following kinematic update equations:
+We then use the following kinematic update equations:
 
 ![alt text][image2]
 
 # Cost function
 
+The cost function is defined in MPC.cpp (from lines 48 to 67).  
 
+The parameters which impact the cost function the most are the CTE (Cross Track Error) and the orientation angle error (difference to desired orientation).
+Furthermore the difference to a reference speed of 120mph is added to the cost function, but a small weight of 0.2 is used so that following an ideal path during turns is prioritized to driving at high speeds which can be detrimental to the ability of the car to stay on the track.
+
+Other factors taken into account are the absolute values of the actuators and the derivatives of these values to favour smooth driving.
+
+The weights parameters were chosen heuristically and iteratively after repetitively observing the resulting driving behaviour of the model. A small CTE and orientation error were the priority during the tuning process. After that achieving smoothness was the main target and higher driving speeds came in last position. A big jump in being able to manage higher speeds was possible after taking latency into account.
+
+# Number of Timesteps N and timestep duration dt
+
+I started with N = 15 and dt = 0.1 and after trying several parameters those still showed the best performance. These parameters translate into a look ahead of 1.5s in the time horizon. A small look ahead improves the model since future state predictions are taken into account by the solver, but we do not want to look too far ahead since our approximate model will quickly lose precision. Also the computational resources needed quickly increase with higher N's and smaller dt's. 
+
+Smaller dt's are also advantageous for precision and quicker reaction times, but come at a computational cost. In my experience the standard signal rate inside of ECUs in the automobile industry is of 100ms, with some signals being sampled as fast as 10ms. In the case of steering and throttle actuation I would probably go for 10ms sample rate and control. For this project I stayed with 100ms since it seemed that for 10ms I would have had to start the iterative tuning of the cost parameters from scratch.
 
 ## Dependencies
 
