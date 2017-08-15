@@ -3,6 +3,44 @@ Self-Driving Car Engineer Nanodegree Program
 
 ---
 
+### Writeup
+
+A MPC Controller was implemented to control steering as well as throttle and braking in an Unity based driving simulator achieving velocities up to 100mph with good and smooth turning behaviour around the track.
+
+The MPC controller was implemented in the file MPC.cpp. The main components of the implementation are a defined cost function to be optimized upon and global kinematic equations including the state variables and constraints. All of these information is then passed to the Ipopt solver which returns optimal steering and throttle values (negative throttle values meaning braking/deaccelarating). We also make use of the CppAD library to compute derivatives. The solver and equations take into account a look ahead which is defined by the number of timesteps N and elapsed time between timesteps dt.
+
+The main program main.cpp handles the communication via uWebSockets with the simulator and calls the MPC controller object to update throttle and steering values and send them back to the simulator. Since latency of actuators impose a big problem in real-life applications we apply an artifficial delay of 100ms in the communication process of actuation values back to the simulator to try to emulate this phenomena. The way I handled the latency was to make a prediction at "t + 100ms" of the values coming from the simulator before passing them to the MPC Solver.
+
+Also at main.cpp we make a transformation from map global coordinates to car centered coordinates, before passing the state variables to the MPC Solver.
+
+## Global kinematic model
+
+Analog to the model proposed in the classroom we make use of the following global kinematic model with the following state variables and control inputs:
+
+[ x_1, y_1, \psi_1, v_1, cte_1, e\psi_1]
+State: [x,y,/psi, v]
+
+X and Y being the car position in Cartesian Coordinates, Psi the orientation angle of the car and V the velocity of the car in MPH.
+
+Control Inputs: [Delta, a]
+Delta being the steering angle from [-1, 1] and a the throttle/brake value from [-1, 1] also.
+
+We use the following kinematic update equations:
+
+x_{t+1} = x_{t} + v_{t} * cos(psi) * dt
+
+\begin{align}
+x_{t+1} & = x_t + v_t * cos(\psi_t) * dt \nonumber \\
+y_{t+1} & = y_t + v_t * sin(\psi_t) * dt \nonumber \\
+\psi_{t+1} & = \psi_t + \frac{v_t}{L_f} * \delta_t * dt \nonumber \\
+v_{t+1} & = v_t + a_t * dt \nonumber \\
+cte_{t+1} & = f(x_t) - y_t + v_t * sin(e\psi_t) * dt \nonumber \\
+e\psi_{t+1} &= \psi_t - {\psi}des_t + \frac{v_t}{L_f} * \delta_t * dt \nonumber
+\end{align}
+# Cost function
+
+
+
 ## Dependencies
 
 * cmake >= 3.5
@@ -61,66 +99,3 @@ Self-Driving Car Engineer Nanodegree Program
 3. Compile: `cmake .. && make`
 4. Run it: `./mpc`.
 
-## Tips
-
-1. It's recommended to test the MPC on basic examples to see if your implementation behaves as desired. One possible example
-is the vehicle starting offset of a straight line (reference). If the MPC implementation is correct, after some number of timesteps
-(not too many) it should find and track the reference line.
-2. The `lake_track_waypoints.csv` file has the waypoints of the lake track. You could use this to fit polynomials and points and see of how well your model tracks curve. NOTE: This file might be not completely in sync with the simulator so your solution should NOT depend on it.
-3. For visualization this C++ [matplotlib wrapper](https://github.com/lava/matplotlib-cpp) could be helpful.
-
-## Editor Settings
-
-We've purposefully kept editor configuration files out of this repo in order to
-keep it as simple and environment agnostic as possible. However, we recommend
-using the following settings:
-
-* indent using spaces
-* set tab width to 2 spaces (keeps the matrices in source code aligned)
-
-## Code Style
-
-Please (do your best to) stick to [Google's C++ style guide](https://google.github.io/styleguide/cppguide.html).
-
-## Project Instructions and Rubric
-
-Note: regardless of the changes you make, your project must be buildable using
-cmake and make!
-
-More information is only accessible by people who are already enrolled in Term 2
-of CarND. If you are enrolled, see [the project page](https://classroom.udacity.com/nanodegrees/nd013/parts/40f38239-66b6-46ec-ae68-03afd8a601c8/modules/f1820894-8322-4bb3-81aa-b26b3c6dcbaf/lessons/b1ff3be0-c904-438e-aad3-2b5379f0e0c3/concepts/1a2255a0-e23c-44cf-8d41-39b8a3c8264a)
-for instructions and the project rubric.
-
-## Hints!
-
-* You don't have to follow this directory structure, but if you do, your work
-  will span all of the .cpp files here. Keep an eye out for TODOs.
-
-## Call for IDE Profiles Pull Requests
-
-Help your fellow students!
-
-We decided to create Makefiles with cmake to keep this project as platform
-agnostic as possible. Similarly, we omitted IDE profiles in order to we ensure
-that students don't feel pressured to use one IDE or another.
-
-However! I'd love to help people get up and running with their IDEs of choice.
-If you've created a profile for an IDE that you think other students would
-appreciate, we'd love to have you add the requisite profile files and
-instructions to ide_profiles/. For example if you wanted to add a VS Code
-profile, you'd add:
-
-* /ide_profiles/vscode/.vscode
-* /ide_profiles/vscode/README.md
-
-The README should explain what the profile does, how to take advantage of it,
-and how to install it.
-
-Frankly, I've never been involved in a project with multiple IDE profiles
-before. I believe the best way to handle this would be to keep them out of the
-repo root to avoid clutter. My expectation is that most profiles will include
-instructions to copy files to a new location to get picked up by the IDE, but
-that's just a guess.
-
-One last note here: regardless of the IDE used, every submitted project must
-still be compilable with cmake and make./
