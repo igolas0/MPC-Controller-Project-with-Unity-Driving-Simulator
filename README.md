@@ -2,6 +2,11 @@
 Self-Driving Car Engineer Nanodegree Program
 
 ---
+[//]: # (Image References) 
+
+[image1]: ./images/variables.jpg "State variables" 
+[image2]: ./images/equations.jpg "Equations" 
+
 
 ### Writeup
 
@@ -17,8 +22,7 @@ Also at main.cpp we make a transformation from map global coordinates to car cen
 
 Analog to the model proposed in the classroom we make use of the following global kinematic model with the following state variables and control inputs:
 
-[ x_1, y_1, \psi_1, v_1, cte_1, e\psi_1]
-State: [x,y,/psi, v]
+![alt text][image1]
 
 X and Y being the car position in Cartesian Coordinates, Psi the orientation angle of the car and V the velocity of the car in MPH.
 
@@ -27,16 +31,8 @@ Delta being the steering angle from [-1, 1] and a the throttle/brake value from 
 
 We use the following kinematic update equations:
 
-x_{t+1} = x_{t} + v_{t} * cos(psi) * dt
+![alt text][image2]
 
-\begin{align}
-x_{t+1} & = x_t + v_t * cos(\psi_t) * dt \nonumber \\
-y_{t+1} & = y_t + v_t * sin(\psi_t) * dt \nonumber \\
-\psi_{t+1} & = \psi_t + \frac{v_t}{L_f} * \delta_t * dt \nonumber \\
-v_{t+1} & = v_t + a_t * dt \nonumber \\
-cte_{t+1} & = f(x_t) - y_t + v_t * sin(e\psi_t) * dt \nonumber \\
-e\psi_{t+1} &= \psi_t - {\psi}des_t + \frac{v_t}{L_f} * \delta_t * dt \nonumber
-\end{align}
 # Cost function
 
 
